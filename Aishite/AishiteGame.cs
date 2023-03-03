@@ -1,4 +1,5 @@
-﻿using Aishite.Screens;
+﻿using Aishite.Screens.Menu;
+using Aishite.SettignsManagement;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 
@@ -8,23 +9,47 @@ namespace Aishite
     {
         private readonly GraphicsDeviceManager _graphics;
         private readonly ScreenManager _screenManager;
+        private readonly ISettingsManager _settingsManager;
 
         public AishiteGame()
         {
-            _graphics = new GraphicsDeviceManager(this)
-            {
-                SynchronizeWithVerticalRetrace = true,
-                IsFullScreen = false
-            };
+            _settingsManager = new SettingsManager(new JsonSettingsProvider(), new MemoryStorage());
+            Services.AddService(_settingsManager);
+
+            _graphics = new GraphicsDeviceManager(this);
 
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
             IsFixedTimeStep = false;
 
-            _screenManager = new ScreenManager(this);
+            _screenManager = ScreenManager.Create(this, true);
             Components.Add(_screenManager);
 
-            _screenManager.AddScreen(new AdditionalInfoScreen());
+            _screenManager.AddScreen(TitleScreen.Create(_screenManager));
+        }
+
+        protected override void Initialize()
+        {
+            _settingsManager.NewSettings += SettingsManagerNewSettings;
+
+            var settigns = _settingsManager.GetSettings();
+
+            _graphics.SynchronizeWithVerticalRetrace = settigns.VerticalSync;
+            _graphics.IsFullScreen = settigns.IsFullScreen;
+            _graphics.PreferredBackBufferWidth = (int)settigns.WindowWidth;
+            _graphics.PreferredBackBufferHeight = (int)settigns.WindowHeight;
+            _graphics.ApplyChanges();
+
+            base.Initialize();
+        }
+
+        private void SettingsManagerNewSettings(object? sender, NewSettingsEventArgs e)
+        {
+            _graphics.SynchronizeWithVerticalRetrace = e.Settings.VerticalSync;
+            _graphics.IsFullScreen = e.Settings.IsFullScreen;
+            _graphics.PreferredBackBufferWidth = (int)e.Settings.WindowWidth;
+            _graphics.PreferredBackBufferHeight = (int)e.Settings.WindowHeight;
+            _graphics.ApplyChanges();
         }
 
         protected override void Update(GameTime gameTime)
